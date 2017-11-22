@@ -1,0 +1,35 @@
+var db = 'telegraf'
+var rp = 'autogen'
+var measurement = 'cpu'
+
+var name = 'deadman_tag'
+var idVar = name + ':{{.Group}}'
+
+var outputDB = 'meta'
+var outputRP = 'autogen'
+var outputMeasurement = 'alerts'
+
+var triggerType = 'deadman'
+
+//defining data to be sent in stream
+var data = stream
+    |from()
+        .database(db)
+        .retentionPolicy(rp)
+        .measurement(measurement)
+
+//Whenever there is no data coming from sensor this will trigger
+var trigger = data
+    |deadman(0.0, 1s)
+      .message('I am a deadman')
+      .log('/home/iot/Desktop/6012/TickScripts/dead.txt')
+
+//creating new database where all the alerts will be saved
+trigger
+    |influxDBOut()
+        .create()
+        .database(outputDB)
+        .retentionPolicy(outputRP)
+        .measurement(outputMeasurement)
+        .tag('alertName', name)
+        .tag('triggerType', triggerType)

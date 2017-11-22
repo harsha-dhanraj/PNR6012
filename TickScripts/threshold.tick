@@ -1,0 +1,53 @@
+var db = 'telegraf'
+var rp = 'autogen'
+var measurement = 'cpu'
+var groupBy = []
+var whereFilter = lambda: ("cpu" == 'cpu-total')
+var name = 'Threshold'
+var idVar = name + ':{{.Group}}'
+var message = ' {{.ID}} {{.Name}} {{ index .Fields "value" }} {{.Time}}'
+var idTag = 'alertID'
+var levelTag = 'level'
+var messageField = 'message'
+var durationField = 'duration'
+var outputDB = 'chronograf'
+var outputRP = 'autogen'
+var outputMeasurement = 'alerts'
+var triggerType = 'threshold'
+
+var crit = 5
+
+//defining data to be sent in stream
+var data = stream
+    |from()
+        .database(db)
+        .retentionPolicy(rp)
+        .measurement(measurement)
+        .groupBy(groupBy)
+        .where(whereFilter)
+    |eval(lambda: "usage_user")
+        .as('value')
+
+//Whenever the data value exceeds critical value trigger will be generated
+var trigger = data
+    |alert()
+        .crit(lambda: "value" > crit)
+        .stateChangesOnly()
+        .message(message)
+        .id(idVar)
+        .idTag(idTag)
+        .levelTag(levelTag)
+        .messageField(messageField)
+        .durationField(durationField)
+        .log('/home/iot/Desktop/6012/TickScripts/threshold.txt')
+
+//creating new database where all the alerts will be saved
+trigger
+    |influxDBOut()
+        .create()
+        .database(outputDB)
+        .retentionPolicy(outputRP)
+        .measurement(outputMeasurement)
+        .tag('alertName', name)
+        .tag('triggerType', triggerType)
+
